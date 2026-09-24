@@ -58,8 +58,11 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Header from './components/header/Header'
 import Home from './Pages/Home'
-import Login from './components/Auth/Login'
-import Signup from './components/Auth/Signup'
+
+import Login from './components/Auth/login'
+import Signup from './components/Auth/signup'
+// import Login from './components/Auth/Login'
+// import Signup from './components/Auth/Signup'
 // import login from './components/Auth/login'
 // import signup from './components/Auth/signup'
 import Dashboard from './Pages/Dashboard'

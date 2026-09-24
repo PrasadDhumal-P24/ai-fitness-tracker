@@ -35,10 +35,10 @@ export function FitnessProvider({ children }) {
     }
   })
 
-  //local storage check
+  // Local storage check on initial load
   useEffect(() => {
     try {
-      const savedUser = localStorage.getItem('fitai_user')
+      const savedUser = localStorage.getItem('user') || localStorage.getItem('fitai_user')
       if (savedUser) setCurrentUser(JSON.parse(savedUser))
 
       const savedData = localStorage.getItem('fitai_data')
@@ -71,23 +71,25 @@ export function FitnessProvider({ children }) {
     })
   }
 
-  // SIGNUP
-  const signup = (name, email, password, goal, level) => {
-    const users = JSON.parse(
-      localStorage.getItem('fitai_users') || '[]'
-    )
+  // SIGNUP (Backend Object Compatibility Added)
+  const signup = (userDataOrName, email, password, goal, level) => {
+    // Handling Direct Backend User Object Response
+    if (typeof userDataOrName === 'object' && userDataOrName !== null) {
+      setCurrentUser(userDataOrName)
+      localStorage.setItem('user', JSON.stringify(userDataOrName))
+      return { success: true }
+    }
 
-    // checking Email already exists 
-    const exists = users.find(
-      u => u.email.toLowerCase() === email.trim().toLowerCase()
-    )
+    // Local Storage Fallback
+    const users = JSON.parse(localStorage.getItem('fitai_users') || '[]')
+    const exists = users.find(u => u.email.toLowerCase() === email.trim().toLowerCase())
     if (exists) {
       return { success: false, message: 'Email already registered!' }
     }
 
     const newUser = {
       id: Date.now(),
-      name: name.trim(),
+      name: userDataOrName.trim(),
       email: email.trim().toLowerCase(),
       password: password.trim(),
       goal: goal || 'Get Fit',
@@ -105,50 +107,63 @@ export function FitnessProvider({ children }) {
       goal: newUser.goal,
       level: newUser.level
     }
-    localStorage.setItem('fitai_user', JSON.stringify(userToSave))
+    localStorage.setItem('user', JSON.stringify(userToSave))
     setCurrentUser(userToSave)
 
     return { success: true }
   }
 
-  // LOGIN
-  const login = (email, password) => {
-    const users = JSON.parse(
-      localStorage.getItem('fitai_users') || '[]'
-    )
-
-    const user = users.find(
-      u =>
-        u.email.toLowerCase() === email.trim().toLowerCase() &&
-        u.password === password.trim()
-    )
-
-    if (!user) {
-      return { success: false, message: 'Invalid email or password!' }
+  // LOGIN (Supports both Backend User Object AND Traditional Email/Pass)
+  const login = (userDataOrEmail, tokenOrPassword) => {
+    // 1. Backend Integration Case (Object passed from Signup/Login fetch response)
+    if (typeof userDataOrEmail === 'object' && userDataOrEmail !== null) {
+      setCurrentUser(userDataOrEmail)
+      localStorage.setItem('user', JSON.stringify(userDataOrEmail))
+      if (tokenOrPassword) {
+        localStorage.setItem('token', tokenOrPassword)
+      }
+      return { success: true }
     }
 
-    const userToSave = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      goal: user.goal,
-      level: user.level
-    }
-    localStorage.setItem('fitai_user', JSON.stringify(userToSave))
-    setCurrentUser(userToSave)
+    // 2. Local Storage Direct Case (Strings passed)
+    if (typeof userDataOrEmail === 'string' && typeof tokenOrPassword === 'string') {
+      const users = JSON.parse(localStorage.getItem('fitai_users') || '[]')
+      const user = users.find(
+        u => u.email.toLowerCase() === userDataOrEmail.trim().toLowerCase() &&
+             u.password === tokenOrPassword.trim()
+      )
 
-    return { success: true }
+      if (!user) {
+        return { success: false, message: 'Invalid email or password!' }
+      }
+
+      const userToSave = {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        goal: user.goal,
+        level: user.level
+      }
+      localStorage.setItem('user', JSON.stringify(userToSave))
+      setCurrentUser(userToSave)
+      return { success: true }
+    }
+
+    return { success: false, message: 'Invalid parameters provided' }
   }
 
   // LOGOUT
   const logout = () => {
+    localStorage.removeItem('user')
     localStorage.removeItem('fitai_user')
+    localStorage.removeItem('token')
     setCurrentUser(null)
   }
 
   return (
     <FitnessContext.Provider value={{
       currentUser,
+      user: currentUser, // Alias for compatibility across components
       loading,
       fitnessData,
       updateFitnessData,
